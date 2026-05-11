@@ -1,6 +1,6 @@
 # Fintech News Malaysia CLI
 
-Browse [Fintech News Malaysia](https://fintechnews.my/) directly from your terminal — latest articles, category filters, keyword search, and open in browser.
+Browse [Fintech News Malaysia](https://fintechnews.my/) directly from your terminal — latest articles, category filters, keyword search, company tracking, trending topics, and more.
 
 ## Install
 
@@ -10,29 +10,68 @@ cd fintechnews-malaysia-cli
 pip3 install -r requirements.txt
 ```
 
-## Usage
+## Commands
 
+### `latest` — Latest articles
 ```bash
-# Latest news
 python3 cli.py latest
-
-# Limit number of results
 python3 cli.py latest --limit 50
 
-# Browse by category
+# Export to CSV
+python3 cli.py latest --export articles.csv
+```
+
+### `category` — Browse by topic
+```bash
 python3 cli.py category blockchain
 python3 cli.py category payments
 python3 cli.py category ai
+python3 cli.py category digital-banking --limit 30 --export banking.csv
+```
 
-# See all available categories
-python3 cli.py categories
-
-# Search by keyword
+### `search` — Find articles by keyword
+```bash
 python3 cli.py search "Bank Negara"
-python3 cli.py search "e-wallet"
+python3 cli.py search "e-wallet" --export results.csv
+```
 
-# Open article #3 in your browser
-python3 cli.py open 3
+### `open` — Open article in browser
+```bash
+python3 cli.py open 3    # opens article #3 from the latest list
+```
+
+### `track` — Track a company or keyword
+```bash
+python3 cli.py track CIMB
+python3 cli.py track Maybank
+python3 cli.py track "digital banking"
+```
+Shows total mention count, which categories they appear in most, and every article that mentions them.
+
+### `watch` — Live auto-refreshing feed
+```bash
+python3 cli.py watch
+python3 cli.py watch --interval 60   # refresh every 60 seconds
+python3 cli.py watch --limit 20
+```
+Polls the feed on an interval and highlights new articles as they appear. Press `Ctrl+C` to stop.
+
+### `digest` — Daily briefing grouped by category
+```bash
+python3 cli.py digest
+```
+Morning snapshot of the latest articles organised by topic — good for a quick daily brief.
+
+### `trending` — Most mentioned topics right now
+```bash
+python3 cli.py trending
+python3 cli.py trending --top 20
+```
+Ranks the most frequently mentioned tags and topics across the latest feed.
+
+### `categories` — List all available categories
+```bash
+python3 cli.py categories
 ```
 
 ## Available Categories
