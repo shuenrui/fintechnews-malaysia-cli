@@ -2,6 +2,20 @@
 
 Browse [Fintech News Malaysia](https://fintechnews.my/) directly from your terminal — latest articles, category filters, keyword search, company tracking, trending topics, and more.
 
+## Who is this for?
+
+Yes, you can read the same news on the website. And yes, an AI agent with web access can pull the same information on demand. This CLI is not trying to replace either.
+
+It earns its place in specific workflows:
+
+- **Automation** — run a cron job that exports a CSV every morning into your pipeline, Notion, or inbox without touching a browser or prompting an AI
+- **Speed** — `fnews trending` in 2 seconds, no context switching
+- **Piping into code** — feed exported data directly into a Python script, dashboard, or data pipeline
+- **No AI dependency** — no API cost, no prompt required, works offline against the RSS feed
+- **Building block** — designed to sit inside a larger system, e.g. a Telegram/Slack bot that summarises the day's Malaysian fintech news every morning
+
+If you just want to read the news, the website is fine. If you want to **automate around it**, this is the tool.
+
 ## Install
 
 ```bash
