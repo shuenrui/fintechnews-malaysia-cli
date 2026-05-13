@@ -223,7 +223,7 @@ def top(
     with console.status("[cyan]Ranking top news...[/cyan]"):
         articles = get_top_news(limit=limit)
 
-    today = __import__("datetime").datetime.utcnow().strftime("%d %b %Y")
+    today = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%d %b %Y")
     console.print(Panel(
         f"[bold white]Fintech News Malaysia[/bold white]\n[dim]{today}[/dim]",
         title="[bold magenta]Top News[/bold magenta]",
