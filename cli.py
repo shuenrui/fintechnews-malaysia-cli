@@ -1,5 +1,6 @@
 import typer
 import time
+import re
 import webbrowser
 from rich.console import Console
 from rich.table import Table
@@ -14,6 +15,7 @@ from client import (
     track_keyword,
     get_digest,
     get_trending,
+    get_top_news,
     export_articles,
     list_categories,
 )
@@ -210,6 +212,45 @@ def track(
         table.add_row(article["date"], article["title"], tags)
 
     console.print(table)
+
+
+@app.command()
+def top(
+    limit: int = typer.Option(10, "--limit", "-n", help="Number of top articles to show"),
+    export: str = typer.Option(None, "--export", "-e", help="Export results to CSV"),
+):
+    """Top news ranked by recency, importance, and relevance."""
+    with console.status("[cyan]Ranking top news...[/cyan]"):
+        articles = get_top_news(limit=limit)
+
+    today = __import__("datetime").datetime.utcnow().strftime("%d %b %Y")
+    console.print(Panel(
+        f"[bold white]Fintech News Malaysia[/bold white]\n[dim]{today}[/dim]",
+        title="[bold magenta]Top News[/bold magenta]",
+        border_style="magenta",
+    ))
+
+    for i, article in enumerate(articles, 1):
+        tags = "  ·  ".join(article["tags"][:4]) if article["tags"] else "-"
+        console.print(
+            f"\n[bold cyan]#{i}[/bold cyan]  [bold white]{article['title']}[/bold white]"
+        )
+        console.print(f"     [dim]{article['timestamp']}[/dim]")
+        console.print(f"     [dim]{tags}[/dim]")
+        if article.get("summary"):
+            # first 3 sentences only for readability
+            sentences = re.split(r'(?<=[.!?])\s+', article["summary"])
+            preview = " ".join(sentences[:3])
+            console.print(f"\n     {preview}")
+        console.print(f"\n     [cyan]{article['link']}[/cyan]")
+        console.print(Rule(style="dim"))
+
+    if export:
+        export_articles(
+            [{**a, "date": a["timestamp"], "categories": a["tags"]} for a in articles],
+            export
+        )
+        console.print(f"[green]Exported to[/green] [bold]{export}[/bold]\n")
 
 
 @app.command()

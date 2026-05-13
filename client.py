@@ -141,6 +141,85 @@ def map_to_category(tags: list[str]) -> str:
     return "other"
 
 
+IMPORTANT_ENTITIES = [
+    "bank negara", "bnm", "securities commission", "sc malaysia",
+    "khazanah", "maybank", "cimb", "rhb", "hong leong", "public bank",
+    "blackrock", "central bank", "ministry of finance", "mof",
+    "bursa malaysia", "petronas", "epf", "kwap", "pnb",
+]
+
+HIGH_WEIGHT_TAGS = [
+    "blockchain", "tokenisation", "tokenization", "regulation", "regtech",
+    "policy", "digital banking", "central bank", "sukuk", "security", "fraud",
+]
+
+
+def score_article(entry) -> float:
+    score = 0.0
+
+    # Recency — freshest articles score highest
+    dt = parse_datetime(entry)
+    hours_ago = (datetime.utcnow() - dt).total_seconds() / 3600
+    if hours_ago < 12:
+        score += 12
+    elif hours_ago < 24:
+        score += 9
+    elif hours_ago < 48:
+        score += 6
+    elif hours_ago < 72:
+        score += 3
+    else:
+        score += 1
+
+    # Important institution mentions
+    combined = (entry.get("title", "") + " " + get_full_content(entry)).lower()
+    for entity in IMPORTANT_ENTITIES:
+        if entity in combined:
+            score += 2
+
+    # High-weight topic tags
+    tags = [tag.term.lower() for tag in entry.get("tags", [])]
+    for tag in HIGH_WEIGHT_TAGS:
+        if any(tag in t for t in tags):
+            score += 3
+
+    # Content depth — longer articles tend to be more substantial
+    content_len = len(get_full_content(entry))
+    score += min(content_len / 600, 5)
+
+    # Tag specificity — penalise generic "Various" articles
+    specific_tags = [t for t in tags if t not in ("various", "featured")]
+    score += len(specific_tags) * 0.5
+
+    return score
+
+
+def parse_timestamp(entry) -> str:
+    try:
+        dt = parsedate_to_datetime(entry.get("published", ""))
+        return dt.strftime("%d %b %Y · %H:%M")
+    except Exception:
+        return "Unknown"
+
+
+def get_top_news(limit: int = 10) -> list[dict]:
+    feed = feedparser.parse(FEED_URL)
+    scored = []
+    for entry in feed.entries:
+        tags = [tag.term for tag in entry.get("tags", [])]
+        clean_tags = [t for t in tags if t.lower() not in ("various", "featured")]
+        scored.append({
+            "title": entry.get("title", "No title"),
+            "link": entry.get("link", ""),
+            "timestamp": parse_timestamp(entry),
+            "summary": get_full_content(entry),
+            "tags": clean_tags,
+            "score": score_article(entry),
+        })
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored[:limit]
+
+
 def get_digest() -> dict:
     feed = feedparser.parse(FEED_URL)
     today = datetime.utcnow().strftime("%d %b %Y")
@@ -157,7 +236,6 @@ def get_digest() -> dict:
         }
         grouped.setdefault(category, []).append(article)
 
-    # sort: categories with most articles first, "other" always last
     sorted_sections = dict(
         sorted(grouped.items(), key=lambda x: (x[0] == "other", -len(x[1])))
     )
