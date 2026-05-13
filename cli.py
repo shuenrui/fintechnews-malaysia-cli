@@ -214,7 +214,7 @@ def track(
 
 @app.command()
 def digest():
-    """Morning briefing — latest articles grouped by category."""
+    """Morning briefing — latest articles grouped by category with full content."""
     with console.status("[cyan]Preparing digest...[/cyan]"):
         data = get_digest()
 
@@ -225,9 +225,16 @@ def digest():
     ))
 
     for section, articles in data["sections"].items():
-        console.print(f"\n[bold cyan]{section}[/bold cyan]")
-        for article in articles[:3]:
-            console.print(f"  [green]•[/green] [white]{article['title']}[/white] [dim]({article['date']})[/dim]")
+        count = len(articles)
+        console.print(f"\n[bold cyan]{section.upper()}[/bold cyan] [dim]({count} article{'s' if count > 1 else ''})[/dim]")
+        console.print(Rule(style="dim"))
+        for article in articles:
+            tags = ", ".join(t for t in article["tags"][:4] if t.lower() not in ("various", "featured")) or "-"
+            console.print(f"\n  [bold white]{article['title']}[/bold white]")
+            console.print(f"  [dim]{article['date']} · {tags}[/dim]")
+            if article.get("summary"):
+                console.print(f"  {article['summary']}\n")
+            console.print(f"  [cyan]{article['link']}[/cyan]")
 
     console.print()
 

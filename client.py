@@ -1,8 +1,15 @@
 import feedparser
 import csv
+import re
 from collections import Counter
 from datetime import datetime
 from email.utils import parsedate_to_datetime
+
+
+def strip_html(text: str) -> str:
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
 
 FEED_URL = "https://fintechnews.my/feed/"
 
@@ -36,6 +43,13 @@ def parse_datetime(entry) -> datetime:
         return datetime.min
 
 
+def get_full_content(entry) -> str:
+    content_list = entry.get("content", [])
+    if content_list:
+        return strip_html(content_list[0].get("value", ""))
+    return strip_html(entry.get("summary", ""))
+
+
 def fetch_articles(limit: int = 20, category: str = None) -> list[dict]:
     url = CATEGORY_FEEDS.get(category, FEED_URL) if category else FEED_URL
     feed = feedparser.parse(url)
@@ -48,7 +62,7 @@ def fetch_articles(limit: int = 20, category: str = None) -> list[dict]:
             "date": parse_date(entry),
             "datetime": parse_datetime(entry),
             "author": entry.get("author", "Fintech News Malaysia"),
-            "summary": entry.get("summary", "")[:200].strip(),
+            "summary": get_full_content(entry),
             "categories": categories,
         })
     return articles
@@ -60,16 +74,16 @@ def search_articles(keyword: str, limit: int = 20) -> list[dict]:
     results = []
     for entry in feed.entries:
         title = entry.get("title", "")
-        summary = entry.get("summary", "")
+        full_content = get_full_content(entry)
         categories = [tag.term for tag in entry.get("tags", [])]
-        if keyword_lower in title.lower() or keyword_lower in summary.lower():
+        if keyword_lower in title.lower() or keyword_lower in full_content.lower():
             results.append({
                 "title": title,
                 "link": entry.get("link", ""),
                 "date": parse_date(entry),
                 "datetime": parse_datetime(entry),
                 "author": entry.get("author", "Fintech News Malaysia"),
-                "summary": summary[:200].strip(),
+                "summary": full_content,
                 "categories": categories,
             })
         if len(results) >= limit:
@@ -103,21 +117,51 @@ def track_keyword(keyword: str) -> dict:
     }
 
 
+CATEGORY_TAG_MAP = {
+    "payments": ["payments", "payments & remittance", "remittance"],
+    "blockchain": ["blockchain", "blockchain/bitcoin", "bitcoin", "crypto", "tokenisation", "tokenization"],
+    "digital-banking": ["digital banking", "digital bank", "neobank"],
+    "insurtech": ["insurtech", "insurance", "takaful"],
+    "wealthtech": ["wealthtech", "wealth", "investment"],
+    "regtech": ["regtech", "regulation", "compliance", "bnm", "bank negara", "sc", "securities commission"],
+    "e-wallets": ["e-wallet", "e-wallets", "ewallet"],
+    "lending": ["lending", "loan", "financing", "credit"],
+    "ai": ["ai", "artificial intelligence", "machine learning"],
+    "islamic-fintech": ["islamic", "shariah", "sukuk", "halal"],
+    "security": ["security", "fraud", "scam", "cybersecurity"],
+}
+
+
+def map_to_category(tags: list[str]) -> str:
+    tags_lower = [t.lower() for t in tags]
+    for category, keywords in CATEGORY_TAG_MAP.items():
+        for kw in keywords:
+            if any(kw in t for t in tags_lower):
+                return category
+    return "other"
+
+
 def get_digest() -> dict:
     feed = feedparser.parse(FEED_URL)
     today = datetime.utcnow().strftime("%d %b %Y")
     grouped = {}
     for entry in feed.entries:
-        date_str = parse_date(entry)
-        categories = [tag.term for tag in entry.get("tags", [])]
-        primary = categories[0] if categories else "General"
+        tags = [tag.term for tag in entry.get("tags", [])]
+        category = map_to_category(tags)
         article = {
             "title": entry.get("title", "No title"),
             "link": entry.get("link", ""),
-            "date": date_str,
+            "date": parse_date(entry),
+            "summary": get_full_content(entry),
+            "tags": tags,
         }
-        grouped.setdefault(primary, []).append(article)
-    return {"date": today, "sections": grouped}
+        grouped.setdefault(category, []).append(article)
+
+    # sort: categories with most articles first, "other" always last
+    sorted_sections = dict(
+        sorted(grouped.items(), key=lambda x: (x[0] == "other", -len(x[1])))
+    )
+    return {"date": today, "sections": sorted_sections}
 
 
 def get_trending(top_n: int = 10) -> list[tuple]:
